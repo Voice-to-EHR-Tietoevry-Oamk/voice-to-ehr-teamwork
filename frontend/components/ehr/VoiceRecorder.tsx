@@ -36,8 +36,18 @@ export default function VoiceRecorder({ patientId, onTranscriptionComplete }: Vo
 
   const startRecording = async () => {    
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder.current = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          channelCount: 1,
+          sampleRate: 16000,
+          sampleSize: 16,
+          echoCancellation: true,
+          noiseSuppression: true
+        } 
+      });
+      mediaRecorder.current = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
       audioChunks.current = [];
 
       mediaRecorder.current.ondataavailable = (event) => {
@@ -72,40 +82,39 @@ export default function VoiceRecorder({ patientId, onTranscriptionComplete }: Vo
 
   const transcribeAudio = async (audioBlob: Blob) => {
     try {
-      const apiKey = process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY;
-      console.log("🔑 env API key:", process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY);
-      if (!apiKey) {
-        throw new Error('Deepgram API key not found');
-      }
-      console.log("Audio blob type:", audioBlob.type); // eg"audio/wav"
-      console.log("Audio blob size:", audioBlob.size); // should not be 0
-      
-      const response = await fetch('https://api.deepgram.com/v1/listen?model=general&language=en-US', {
+      // Convert blob to base64
+      const reader = new FileReader();
+      const base64Audio = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const base64String = reader.result as string;
+          // Remove the data URL prefix
+          const base64Data = base64String.split(',')[1];
+          resolve(base64Data);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(audioBlob);
+      });
+
+      const response = await fetch('/api/voice-to-text', {
         method: 'POST',
         headers: {
-          'Authorization': `Token ${apiKey}`,
-          //old code
-          'Content-Type': 'audio/wav'
+          'Content-Type': 'application/json',
         },
-        body: audioBlob
+        body: JSON.stringify({ audio: base64Audio })
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Deepgram error response:', errorText);//debug code
-        throw new Error(`Deepgram API error: ${response.statusText}. ${errorText}`);
+        const errorData = await response.json();
+        console.error('API Error:', errorData);
+        throw new Error(errorData.error || 'Failed to transcribe audio');
       }
 
       const data = await response.json();
-      console.log("Deepgram response:", data);
-      //new code
-      const transcript = data?.results?.channels?.[0]?.alternatives?.[0]?.transcript;
-      if (!transcript || transcript.trim() === '') {
-        throw new Error('No speech detected in audio.');
+      if (!data.text || data.text.trim() === '') {
+        throw new Error('No speech detected in audio');
       }
-  
-      return transcript;
-      //return data.results?.channels[0]?.alternatives[0]?.transcript || '';
+
+      return data.text;
     } catch (error) {
       console.error('Transcription error:', error);
       throw error;
@@ -127,11 +136,14 @@ export default function VoiceRecorder({ patientId, onTranscriptionComplete }: Vo
           }
         });
 
-        //old code
-        const audioBlob = new Blob(audioChunks.current, { type: 'audio/wav' });
-
-        console.log("Audio blob type:", audioBlob.type); // eg"audio/wav"
-        console.log("Audio blob size:", audioBlob.size); // should not be 0
+        // Create a WAV blob with the correct format
+        const audioBlob = new Blob(audioChunks.current, { 
+          type: 'audio/wav;codecs=1' // PCM format
+        });
+        
+        console.log("Audio blob type:", audioBlob.type);
+        console.log("Audio blob size:", audioBlob.size);
+        
         const transcript = await transcribeAudio(audioBlob);
         
         // Only save transcription if authenticated
