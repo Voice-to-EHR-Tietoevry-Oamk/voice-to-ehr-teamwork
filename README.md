@@ -4,7 +4,7 @@
 
 Click the image below to watch a video demo of the Voice to EHR project:
 
-[![Voice to EHR Demo](frontend/public/demo-login-screenshot.png)](https://www.youtube.com/watch?v=NejdSlW5hR8)
+[![Voice to EHR Demo](frontend/public/icons/demo-sc.png)](https://www.youtube.com/watch?v=NejdSlW5hR8)
 
 ---
 
