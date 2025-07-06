@@ -1,6 +1,10 @@
 # Voice-to-EHR Teamwork Project
 
-This repository contains a full-stack application for converting voice input into structured Electronic Health Records (EHR). The project consists of a **Next.js frontend** and a **Node.js/Express backend**. This guide will help you set up, run, understand, test, and extend the project on your local machine, even if you are a beginner.
+## Project Demo
+
+Click the image below to watch a video demo of the Voice to EHR project:
+
+[![Voice to EHR Demo](frontend/public/demo-login-screenshot.png)](https://www.youtube.com/watch?v=NejdSlW5hR8)
 
 ---
 
